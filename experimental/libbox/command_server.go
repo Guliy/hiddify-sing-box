@@ -34,6 +34,17 @@ type CommandServer struct {
 	endPauseTimer     *time.Timer
 }
 
+// sharedStartedService holds the StartedService from the most recent CommandServer,
+// so that hcore.StartService() can reuse it instead of creating a new one.
+// This ensures the gRPC SubscribeGroups stream and the sing-box instance
+// share the same StartedService.
+var sharedStartedService *daemon.StartedService
+
+// GetSharedStartedService returns the StartedService from the last created CommandServer.
+func GetSharedStartedService() *daemon.StartedService {
+	return sharedStartedService
+}
+
 type CommandServerHandler interface {
 	ServiceStop() error
 	ServiceReload() error
@@ -66,6 +77,8 @@ func NewCommandServer(handler CommandServerHandler, platformInterface PlatformIn
 		// GroupID:          sGroupID,
 		// SystemProxyEnabled: false,
 	})
+	// Store globally so hcore.StartService() can reuse it
+	sharedStartedService = server.StartedService
 	return server, nil
 }
 
