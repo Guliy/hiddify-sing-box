@@ -4,8 +4,10 @@ package settings
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"strings"
 
 	"github.com/sagernet/sing/common"
@@ -131,7 +133,20 @@ func (p *LinuxSystemProxy) runAsUser(name string, args ...string) error {
 	if os.Getuid() != 0 {
 		return shell.Exec(name, args...).Attach().Run()
 	} else if p.sudoUser != "" {
-		return shell.Exec("su", "-", p.sudoUser, "-c", F.ToString(name, " ", strings.Join(args, " "))).Attach().Run()
+		cmd := F.ToString(name, " ", strings.Join(args, " "))
+		// Look up the target user's UID for D-Bus socket path
+		u, err := user.Lookup(p.sudoUser)
+		if err != nil {
+			// Fallback: run without D-Bus env (original behavior)
+			return shell.Exec("su", "-", p.sudoUser, "-c", cmd).Attach().Run()
+		}
+		dbusAddr := fmt.Sprintf("unix:path=/run/user/%s/bus", u.Uid)
+		display := os.Getenv("DISPLAY")
+		if display == "" {
+			display = ":0"
+		}
+		envCmd := fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=%s DISPLAY=%s %s", dbusAddr, display, cmd)
+		return shell.Exec("su", "-", p.sudoUser, "-c", envCmd).Attach().Run()
 	} else {
 		return E.New("set system proxy: unable to set as root")
 	}
