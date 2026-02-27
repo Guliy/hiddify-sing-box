@@ -24,6 +24,15 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var sharedCommandServer *CommandServer
+
+func GetSharedStartedService() *daemon.StartedService {
+	if sharedCommandServer != nil {
+		return sharedCommandServer.StartedService
+	}
+	return nil
+}
+
 type CommandServer struct {
 	*daemon.StartedService
 	handler           CommandServerHandler
@@ -43,6 +52,7 @@ type CommandServerHandler interface {
 }
 
 func NewCommandServer(handler CommandServerHandler, platformInterface PlatformInterface) (*CommandServer, error) {
+	setupPlatformProtect(platformInterface)
 	ctx := BaseContext(platformInterface)
 	platformWrapper := &platformInterfaceWrapper{
 		iif:       platformInterface,
@@ -66,6 +76,7 @@ func NewCommandServer(handler CommandServerHandler, platformInterface PlatformIn
 		// GroupID:          sGroupID,
 		// SystemProxyEnabled: false,
 	})
+	sharedCommandServer = server
 	return server, nil
 }
 
