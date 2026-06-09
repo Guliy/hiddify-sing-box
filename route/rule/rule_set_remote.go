@@ -48,7 +48,7 @@ type RemoteRuleSet struct {
 	lastUpdated    time.Time
 	lastEtag       string
 	updateTicker   *time.Ticker
-	startupTicker  *time.Ticker //H
+	startupTicker  *time.Ticker
 	cacheFile      adapter.CacheFile
 	pauseManager   pause.Manager
 	callbacks      list.List[adapter.RuleSetUpdateCallback]
@@ -112,7 +112,7 @@ func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext *adapter.
 	// 		s.logger.Error(E.Cause(err, "initial rule-set: ", s.options.Tag))
 	// 	}
 	// }
-	s.startupTicker = time.NewTicker(10 * time.Second)
+	s.startupTicker = time.NewTicker(60 * time.Second)
 	s.updateTicker = time.NewTicker(s.updateInterval)
 	return nil
 }
@@ -206,9 +206,10 @@ func (s *RemoteRuleSet) loadBytes(content []byte) error {
 }
 
 func (s *RemoteRuleSet) loopUpdate() {
-	if time.Since(s.lastUpdated) > s.updateInterval {
+	if time.Since(s.lastUpdated) > s.updateInterval || s.lastUpdated.IsZero() {
 		s.updateOnce()
 	}
+	// Retry every 60s in background until rule-set is loaded for the first time
 	for s.lastUpdated.IsZero() {
 		select {
 		case <-s.ctx.Done():
@@ -216,8 +217,8 @@ func (s *RemoteRuleSet) loopUpdate() {
 		case <-s.startupTicker.C:
 			s.updateOnce()
 		}
-
 	}
+	s.startupTicker.Stop()
 
 	for {
 		runtime.GC()
