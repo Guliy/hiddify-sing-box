@@ -24,15 +24,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var sharedCommandServer *CommandServer
-
-func GetSharedStartedService() *daemon.StartedService {
-	if sharedCommandServer != nil {
-		return sharedCommandServer.StartedService
-	}
-	return nil
-}
-
 type CommandServer struct {
 	*daemon.StartedService
 	handler           CommandServerHandler
@@ -89,7 +80,6 @@ func NewCommandServer(handler CommandServerHandler, platformInterface PlatformIn
 	})
 	// Store globally so hcore.StartService() can reuse it
 	sharedStartedService = server.StartedService
-	sharedCommandServer = server
 	return server, nil
 }
 
