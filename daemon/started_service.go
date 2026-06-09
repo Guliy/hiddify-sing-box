@@ -511,9 +511,6 @@ func (s *StartedService) readGroups() *Groups {
 			}
 			g.Items = append(g.Items, &item)
 		}
-		if len(g.Items) < 1 {
-			continue
-		}
 		gs.Group = append(gs.Group, &g)
 	}
 	return &gs
